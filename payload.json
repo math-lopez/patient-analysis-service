@@ -1,0 +1,56 @@
+{
+  "patientId": "patient-001",
+  "psychologistId": "psych-001",
+  "patient": {
+    "id": "patient-001",
+    "name": "Paciente Teste - Ansiedade"
+  },
+  "sessions": [
+    {
+      "id": "session-001",
+      "sessionDate": "2026-03-01T10:00:00Z",
+      "manualNotes": "Paciente apresenta-se orientado, colaborativo e com discurso coerente. Relata sensação constante de ansiedade, principalmente relacionada ao trabalho. Demonstra dificuldade em relaxar, com pensamentos recorrentes sobre responsabilidades profissionais mesmo fora do expediente.",
+      "transcript": "Ansiedade elevada. Sensação de sobrecarga. Medo de falhar profissionalmente. Autocrítica acentuada. Pensamento acelerado e ruminativo. Associação de valor pessoal com produtividade. Dificuldade em estabelecer limites entre vida pessoal e trabalho.",
+      "highlights": [
+        "Ansiedade elevada",
+        "Sensação de sobrecarga",
+        "Medo de falhar profissionalmente",
+        "Autocrítica acentuada",
+        "Pensamento acelerado e ruminativo",
+        "Associação de valor pessoal com produtividade",
+        "Dificuldade em estabelecer limites entre vida pessoal e trabalho"
+      ],
+      "nextSteps": "Iniciar identificação de pensamentos automáticos. Trabalhar consciência emocional. Introduzir técnicas básicas de respiração."
+    },
+    {
+      "id": "session-002",
+      "sessionDate": "2026-03-08T10:00:00Z",
+      "manualNotes": "Paciente retorna relatando leve melhora na percepção dos próprios pensamentos, porém ainda com dificuldade em interromper ciclos de preocupação. Refere episódios de insônia ao longo da semana.",
+      "transcript": "Ansiedade moderada. Frustração com falta de controle. Sensação de cansaço mental. Catastrofização. Pensamento tudo ou nada em relação ao desempenho. Hiperfoco em possíveis erros.",
+      "highlights": [
+        "Ansiedade moderada",
+        "Frustração com falta de controle",
+        "Sensação de cansaço mental",
+        "Catastrofização",
+        "Pensamento tudo ou nada",
+        "Hiperfoco em possíveis erros"
+      ],
+      "nextSteps": "Fortalecer reestruturação cognitiva. Introduzir técnicas de questionamento de pensamentos. Trabalhar higiene do sono."
+    },
+    {
+      "id": "session-004",
+      "sessionDate": "2026-03-15T10:00:00Z",
+      "manualNotes": "Paciente apresenta melhora significativa na percepção emocional e relata redução na intensidade da ansiedade em alguns momentos específicos. Demonstra maior controle sobre respostas automáticas.",
+      "transcript": "Ansiedade leve a moderada. Maior sensação de controle. Início de autocompaixão. Redução de pensamentos catastróficos. Maior capacidade de questionar crenças rígidas. Início de flexibilização cognitiva.",
+      "highlights": [
+        "Ansiedade leve a moderada",
+        "Maior sensação de controle",
+        "Início de autocompaixão",
+        "Redução de pensamentos catastróficos",
+        "Maior capacidade de questionar crenças rígidas",
+        "Início de flexibilização cognitiva"
+      ],
+      "nextSteps": "Consolidar técnicas cognitivas. Trabalhar crenças centrais sobre valor pessoal e produtividade. Introduzir estratégias comportamentais como pausas e limites."
+    }
+  ]
+}

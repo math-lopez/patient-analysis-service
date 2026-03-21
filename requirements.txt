@@ -1,0 +1,4 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+llama-cpp-python==0.3.7
