@@ -25,11 +25,13 @@ _llm = None
 def get_llm():
     global _llm
     if _llm is None:
+        print(f"[analysis] carregando modelo: {MODEL_PATH}")
+        print(f"[analysis] n_ctx={N_CTX} n_threads={N_THREADS}")
         _llm = Llama(
             model_path=MODEL_PATH,
-            n_ctx=8192,
-            n_threads=4,
-            verbose=False,
+            n_ctx=N_CTX,
+            n_threads=N_THREADS,
+            verbose=True,
         )
     return _llm
 
@@ -101,6 +103,20 @@ Histórico de sessões:
 """.strip()
 
 
+def extract_json(text: str) -> dict[str, Any]:
+    text = text.strip()
+
+    if text.startswith("```"):
+        text = text.replace("```json", "").replace("```", "").strip()
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        raise ValueError(f"Modelo não retornou JSON válido. Saída bruta: {text[:500]}")
+
+    return json.loads(text[start:end + 1])
+
+
 @app.post("/process-patient-analysis")
 async def process_patient_analysis(
     payload: AnalysisRequest,
@@ -134,27 +150,21 @@ async def process_patient_analysis(
         print(f"[analysis] prompt montado, tamanho={len(prompt)} caracteres")
 
         print("[analysis] chamando modelo...")
-        response = llm.create_chat_completion(
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Responda apenas com JSON válido."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
+
+        response = llm.create_completion(
+            prompt=prompt + "\n\nResponda SOMENTE com JSON válido.",
             temperature=0.2,
-            max_tokens=800
+            max_tokens=800,
+            stop=["```"]
         )
+
         print("[analysis] modelo respondeu")
 
-        content = response["choices"][0]["message"]["content"]
+        content = response["choices"][0]["text"]
         print("[analysis] conteúdo bruto do modelo:")
         print(content)
 
-        parsed = json.loads(content)
+        parsed = extract_json(content)
         print("[analysis] JSON parseado com sucesso")
 
         return {
@@ -162,6 +172,7 @@ async def process_patient_analysis(
             "summary": parsed.get("summary", ""),
             "recommendations": parsed.get("recommendations", []),
             "risk_flags": parsed.get("risk_flags", []),
+            "data_gaps": parsed.get("data_gaps", []),
             "raw_response": parsed,
         }
 
