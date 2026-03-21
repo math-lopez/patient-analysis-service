@@ -123,9 +123,17 @@ async def process_patient_analysis(
         )
 
     try:
-        llm = get_llm()
-        prompt = build_prompt(payload)
+        print("[analysis] requisição recebida")
+        print(f"[analysis] patientId={payload.patientId}")
+        print(f"[analysis] sessions={len(payload.sessions)}")
 
+        llm = get_llm()
+        print("[analysis] modelo carregado")
+
+        prompt = build_prompt(payload)
+        print(f"[analysis] prompt montado, tamanho={len(prompt)} caracteres")
+
+        print("[analysis] chamando modelo...")
         response = llm.create_chat_completion(
             messages=[
                 {
@@ -138,12 +146,16 @@ async def process_patient_analysis(
                 }
             ],
             temperature=0.2,
-            max_tokens=1200,
-            response_format={"type": "json_object"},
+            max_tokens=800
         )
+        print("[analysis] modelo respondeu")
 
         content = response["choices"][0]["message"]["content"]
+        print("[analysis] conteúdo bruto do modelo:")
+        print(content)
+
         parsed = json.loads(content)
+        print("[analysis] JSON parseado com sucesso")
 
         return {
             "success": True,
@@ -154,6 +166,9 @@ async def process_patient_analysis(
         }
 
     except Exception as e:
+        import traceback
+        print("[analysis] erro:")
+        traceback.print_exc()
         return JSONResponse(
             status_code=500,
             content={
