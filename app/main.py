@@ -137,12 +137,24 @@ def extract_json(text: str) -> dict[str, Any]:
         text = text.replace("```json", "").replace("```", "").strip()
 
     start = text.find("{")
-    end = text.rfind("}")
+    if start == -1:
+        raise ValueError(f"Modelo não retornou JSON válido. Saída bruta: {repr(text[:500])}")
 
-    if start == -1 or end == -1 or end <= start:
-        raise ValueError(
-            f"Modelo não retornou JSON válido. Saída bruta: {repr(text[:500])}"
-        )
+    brace_count = 0
+    end = -1
+
+    for i in range(start, len(text)):
+        char = text[i]
+        if char == "{":
+            brace_count += 1
+        elif char == "}":
+            brace_count -= 1
+            if brace_count == 0:
+                end = i
+                break
+
+    if end == -1:
+        raise ValueError(f"Não foi possível encontrar um JSON completo. Saída bruta: {repr(text[:500])}")
 
     json_text = text[start:end + 1]
 
