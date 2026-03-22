@@ -21,8 +21,8 @@ RUN python -m pip install --upgrade pip && \
 
 RUN mkdir -p /app/models
 
-ARG MODEL_REPO="bartowski/Qwen2.5-3B-Instruct-GGUF"
-ARG MODEL_FILE="Qwen2.5-3B-Instruct-Q4_K_M.gguf"
+ARG MODEL_REPO="TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF"
+ARG MODEL_FILE="tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
 
 RUN curl -L "https://huggingface.co/${MODEL_REPO}/resolve/main/${MODEL_FILE}" \
     -o /app/models/model.gguf
