@@ -15,10 +15,10 @@ app = FastAPI(title="CliniNotes Patient Analysis Service")
 
 INTERNAL_TOKEN = os.getenv("PROCESSING_SERVICE_INTERNAL_TOKEN")
 MODEL_PATH = os.getenv("MODEL_PATH", "/app/models/model.gguf")
-N_CTX = int(os.getenv("MODEL_CONTEXT", "8192"))
+N_CTX = int(os.getenv("MODEL_CONTEXT", "4096"))
 N_THREADS = int(os.getenv("MODEL_THREADS", "4"))
-MAX_TOKENS = int(os.getenv("MODEL_MAX_TOKENS", "800"))
-TEMPERATURE = float(os.getenv("MODEL_TEMPERATURE", "0.2"))
+MAX_TOKENS = int(os.getenv("MODEL_MAX_TOKENS", "300"))
+TEMPERATURE = float(os.getenv("MODEL_TEMPERATURE", "0.1"))
 
 if not INTERNAL_TOKEN:
     raise RuntimeError("PROCESSING_SERVICE_INTERNAL_TOKEN não configurado")
@@ -26,17 +26,21 @@ if not INTERNAL_TOKEN:
 _llm = None
 
 
-def get_llm():
+def get_llm() -> Llama:
     global _llm
     if _llm is None:
-        print(f"[analysis] carregando modelo: {MODEL_PATH}")
-        print(f"[analysis] n_ctx={N_CTX} n_threads={N_THREADS}")
+        print(f"[analysis] carregando modelo: {MODEL_PATH}", flush=True)
+        print(
+            f"[analysis] n_ctx={N_CTX} n_threads={N_THREADS} max_tokens={MAX_TOKENS}",
+            flush=True,
+        )
         _llm = Llama(
             model_path=MODEL_PATH,
             n_ctx=N_CTX,
             n_threads=N_THREADS,
-            verbose=True,
+            verbose=False,
         )
+        print("[analysis] modelo carregado com sucesso", flush=True)
     return _llm
 
 
@@ -67,6 +71,8 @@ async def health():
         "status": "ok",
         "model_loaded": _llm is not None,
         "model_path": MODEL_PATH,
+        "n_ctx": N_CTX,
+        "max_tokens": MAX_TOKENS,
     }
 
 
@@ -90,25 +96,25 @@ Próximos passos: {s.nextSteps or ""}
 
     return f"""
 Você é um assistente de apoio clínico administrativo.
-
-Sua tarefa é gerar uma sugestão de síntese longitudinal com base SOMENTE nos dados fornecidos.
+Sua tarefa é gerar uma síntese longitudinal objetiva com base SOMENTE nas informações fornecidas.
 
 Regras obrigatórias:
 - Não invente fatos
 - Não dê diagnóstico fechado
 - Não trate a resposta como decisão clínica final
 - Se faltar informação, diga isso explicitamente
-- Responda apenas com JSON válido
+- Responda SOMENTE com JSON válido
 - Não use markdown
 - Não use crases
 - Não escreva explicações fora do JSON
+- Seja direto e objetivo
 
-Formato obrigatório:
+Formato obrigatório de saída:
 {{
-  "summary": "texto",
-  "recommendations": ["item 1", "item 2"],
-  "risk_flags": ["item 1"],
-  "data_gaps": ["item 1"]
+  "summary": "resumo longitudinal objetivo",
+  "recommendations": ["recomendação 1", "recomendação 2"],
+  "risk_flags": ["alerta 1"],
+  "data_gaps": ["lacuna 1"]
 }}
 
 Paciente: {payload.patient.name}
@@ -116,6 +122,8 @@ ID do paciente: {payload.patient.id}
 
 Histórico de sessões:
 {joined_sessions}
+
+Responda agora SOMENTE com JSON válido:
 """.strip()
 
 
@@ -176,60 +184,17 @@ def normalize_output(parsed: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def call_model_chat(llm: Llama, prompt: str) -> str:
-    print("[analysis] tentando create_chat_completion...")
-
-    response = llm.create_chat_completion(
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "Você é um assistente de apoio clínico administrativo. "
-                    "Responda SOMENTE com JSON válido. "
-                    "Não use markdown. "
-                    "Não use crases. "
-                    "Não escreva nada fora do JSON."
-                ),
-            },
-            {
-                "role": "user",
-                "content": prompt,
-            },
-        ],
-        temperature=TEMPERATURE,
-        max_tokens=MAX_TOKENS,
-    )
-
-    print("[analysis] resposta crua do chat:")
-    print(response)
-
-    choices = response.get("choices", [])
-    if not choices:
-        raise ValueError("Modelo não retornou choices no create_chat_completion.")
-
-    message = choices[0].get("message", {})
-    content = (message.get("content") or "").strip()
-
-    print("[analysis] conteúdo bruto do chat:")
-    print(repr(content))
-
-    if not content:
-        raise ValueError("Modelo retornou resposta vazia no create_chat_completion.")
-
-    return content
-
-
 def call_model_completion(llm: Llama, prompt: str) -> str:
-    print("[analysis] tentando create_completion...")
+    print("[analysis] tentando create_completion...", flush=True)
 
     response = llm.create_completion(
-        prompt=prompt + "\n\nResponda SOMENTE com JSON válido, sem markdown e sem explicações.",
+        prompt=prompt,
         temperature=TEMPERATURE,
         max_tokens=MAX_TOKENS,
+        stop=["```", "\n\nPaciente:", "\n\nHistórico de sessões:"],
     )
 
-    print("[analysis] resposta crua do completion:")
-    print(response)
+    print("[analysis] create_completion retornou", flush=True)
 
     choices = response.get("choices", [])
     if not choices:
@@ -237,8 +202,8 @@ def call_model_completion(llm: Llama, prompt: str) -> str:
 
     content = (choices[0].get("text") or "").strip()
 
-    print("[analysis] conteúdo bruto do completion:")
-    print(repr(content))
+    print("[analysis] conteúdo bruto do completion:", flush=True)
+    print(repr(content[:1000]), flush=True)
 
     if not content:
         raise ValueError("Modelo retornou resposta vazia no create_completion.")
@@ -247,27 +212,9 @@ def call_model_completion(llm: Llama, prompt: str) -> str:
 
 
 def generate_analysis(llm: Llama, prompt: str) -> dict[str, Any]:
-    errors = []
-
-    try:
-        raw_text = call_model_chat(llm, prompt)
-        parsed = extract_json(raw_text)
-        return parsed
-    except Exception as e:
-        msg = f"Falha em create_chat_completion: {e}"
-        print(f"[analysis] {msg}")
-        errors.append(msg)
-
-    try:
-        raw_text = call_model_completion(llm, prompt)
-        parsed = extract_json(raw_text)
-        return parsed
-    except Exception as e:
-        msg = f"Falha em create_completion: {e}"
-        print(f"[analysis] {msg}")
-        errors.append(msg)
-
-    raise ValueError(" | ".join(errors))
+    raw_text = call_model_completion(llm, prompt)
+    parsed = extract_json(raw_text)
+    return parsed
 
 
 @app.post("/process-patient-analysis")
@@ -292,22 +239,23 @@ async def process_patient_analysis(
         )
 
     try:
-        print("[analysis] requisição recebida")
-        print(f"[analysis] patientId={payload.patientId}")
-        print(f"[analysis] psychologistId={payload.psychologistId}")
-        print(f"[analysis] sessions={len(payload.sessions)}")
+        print("[analysis] requisição recebida", flush=True)
+        print(f"[analysis] patientId={payload.patientId}", flush=True)
+        print(f"[analysis] psychologistId={payload.psychologistId}", flush=True)
+        print(f"[analysis] sessions={len(payload.sessions)}", flush=True)
 
         llm = get_llm()
-        print("[analysis] modelo carregado")
+        print("[analysis] modelo pronto", flush=True)
 
         prompt = build_prompt(payload)
-        print(f"[analysis] prompt montado, tamanho={len(prompt)} caracteres")
-        print("[analysis] chamando modelo...")
+        print(f"[analysis] prompt montado, tamanho={len(prompt)} caracteres", flush=True)
+        print("[analysis] chamando modelo...", flush=True)
 
         parsed = generate_analysis(llm, prompt)
         normalized = normalize_output(parsed)
 
-        print("[analysis] JSON parseado com sucesso")
+        print("[analysis] JSON parseado com sucesso", flush=True)
+        print("[analysis] retornando resposta final", flush=True)
 
         return {
             "success": True,
@@ -319,7 +267,7 @@ async def process_patient_analysis(
         }
 
     except Exception as e:
-        print("[analysis] erro:")
+        print("[analysis] erro:", flush=True)
         traceback.print_exc()
         return JSONResponse(
             status_code=500,
