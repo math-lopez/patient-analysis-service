@@ -15,9 +15,9 @@ app = FastAPI(title="CliniNotes Patient Analysis Service")
 
 INTERNAL_TOKEN = os.getenv("PROCESSING_SERVICE_INTERNAL_TOKEN")
 MODEL_PATH = os.getenv("MODEL_PATH", "/app/models/model.gguf")
-N_CTX = int(os.getenv("MODEL_CONTEXT", "1024"))
-N_THREADS = int(os.getenv("MODEL_THREADS", "2"))
-MAX_TOKENS = int(os.getenv("MODEL_MAX_TOKENS", "120"))
+N_CTX = int(os.getenv("MODEL_CONTEXT", "4096"))
+N_THREADS = int(os.getenv("MODEL_THREADS", "4"))
+MAX_TOKENS = int(os.getenv("MODEL_MAX_TOKENS", "300"))
 TEMPERATURE = float(os.getenv("MODEL_TEMPERATURE", "0.1"))
 
 if not INTERNAL_TOKEN:
